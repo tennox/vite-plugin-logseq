@@ -129,7 +129,7 @@ if (import.meta.hot) {
         let name = logseq.api.get_current_page().originalName;
         //console.debug("✨ Post-HMR -> RELOADING PAGE ✨", name);
         logseq.api.replace_state("home");
-        setTimeout(() => logseq.api.replace_state("page", { name })); // sometimes it works without defer, but sometimes it doesn't
+        setTimeout(() => logseq.api.replace_state("page", { name }), 300); // sometimes it works without defer, but sometimes it doesn't
       })();\`)
     })()
   });
