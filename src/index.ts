@@ -59,6 +59,7 @@ const logseqDevPlugin: (options: {entry: string}) => Plugin = ({entry: entryFile
   return {
     name: pluginName,
     enforce: "post",
+    apply: 'serve',
     config: async (config, resolvedEnv) => {
       configEnv = resolvedEnv;
 
@@ -99,7 +100,8 @@ const logseqDevPlugin: (options: {entry: string}) => Plugin = ({entry: entryFile
         // server?.moduleGraph.getModuleById(id)?.importers.size === 0 &&
         !/node_modules/.test(id) &&
         id.startsWith(process.cwd()) &&
-        id.endsWith(entryFile)
+        // id.endsWith(entryFile)
+        (id.endsWith("ts") || id.endsWith("tsx") || id.endsWith("js") || id.endsWith("jsx"))
       ) {
         const s = new MagicString(code);
 
@@ -112,29 +114,31 @@ if (import.meta.hot) {
 
     void (async () => {
       if (!top_ref) return WARN('HMR fail - no top')
-      if (top_ref.hmrCheck && (top_ref.hmrCheck - new Date()) > -2000) {
-        console.log("Skipping reload bc. debounce", top_ref.hmrCheck)
-        return
+      if (top_ref.hmrCheckTimer) {
+        console.debug("Debouncing reload bc. of another HMR", top_ref.hmrCheckTimer)
+        clearInterval(top_ref.hmrCheckTimer)
+      } else {
+        console.log('[${pluginId}] update in progress...✨')
       }
-      console.log('%c✨ [${pluginId}] update ready - reloading ✨', 'font-weight: bold; font-size: 15px; color: purple;')
-      top_ref.hmrCheck = new Date()
-      await (new Promise(resolve => setTimeout(resolve, 2000)))
-      try {
-        await top_ref.LSPluginCore.reload('${pluginId}')
-      } catch (err) { DEBUG('HMR error (probably double HMR race):', err); return }
-
-      // Reload page
-      // TODO: is there a way to trigger re-render globally ?
-      top_ref.eval(\`(() => {
-        let name = logseq.api.get_current_page().originalName;
-        //console.debug("✨ Post-HMR -> RELOADING PAGE ✨", name);
-        logseq.api.replace_state("home");
-        setTimeout(() => logseq.api.replace_state("page", { name }), 300); // sometimes it works without defer, but sometimes it doesn't
-      })();\`)
+      top_ref.hmrCheckTimer = setTimeout(() => {
+        console.log('%c✨ [${pluginId}] update ready - reloading ✨', 'font-weight: bold; font-size: 15px; color: purple;')
+        top_ref.LSPluginCore.reload('${pluginId}')
+        .catch(err => DEBUG('HMR error (probably double HMR race):', err))
+        .then(() => {
+          // Reload page
+          // TODO: is there a way to trigger re-render globally ?
+          top_ref.eval(\`(() => {
+            let name = logseq.api.get_current_page().originalName;
+            //console.debug("✨ Post-HMR -> RELOADING PAGE ✨", name);
+            logseq.api.replace_state("home");
+            setTimeout(() => logseq.api.replace_state("page", { name }), 300); // sometimes it works without defer, but sometimes it doesn't
+          })();\`)
+        })
+      }, 2000)
     })()
   });
   import.meta.hot.dispose(() => {
-    console.log("HMR Dispose")
+    console.debug("HMR Dispose")
   })
 }`
         );
