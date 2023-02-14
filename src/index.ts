@@ -67,16 +67,16 @@ const logseqDevPlugin: (options: {entry: string}) => Plugin = ({entry: entryFile
       // the asset will be served from the root "/"
       config.base = "";
 
-      // Plugin works in file://, but it fetches vite resources from localhost
+      // Plugin works in file://, but it fetches vite resources from 127.0.0.1
       // thus we must turn on cors
       if (resolvedEnv.command === "serve") {
         config.server = Object.assign({}, config.server, {
           cors: true,
           // I think we do not need to concern about this ...
-          host: "localhost",
-          hmr: {
-            host: "localhost",
-          },
+          // host: "127.0.0.1",
+          // hmr: {
+          //   host: "127.0.0.1",
+          // },
           // There is no point to open the index.html
           open: false
         });
@@ -87,20 +87,23 @@ const logseqDevPlugin: (options: {entry: string}) => Plugin = ({entry: entryFile
 
     configureServer(_server) {
       server = _server;
+      console.warn(`${pluginName}: got server`);
     },
 
     configResolved(resolvedConfig) {
       // store the resolved config
       config = resolvedConfig;
+
+      console.warn(`${pluginName}: got config`);
     },
 
     transform(code, id) {
-      // console.debug(id,'entry?', entryFile, id.endsWith(entryFile))
+      console.debug(id,'entry?', entryFile, id.endsWith(entryFile))
       if (
         // server?.moduleGraph.getModuleById(id)?.importers.size === 0 &&
         !/node_modules/.test(id) &&
         id.startsWith(process.cwd()) &&
-        // id.endsWith(entryFile)
+        id.endsWith(entryFile) &&
         (id.endsWith("ts") || id.endsWith("tsx") || id.endsWith("js") || id.endsWith("jsx"))
       ) {
         const s = new MagicString(code);
@@ -177,18 +180,19 @@ if (import.meta.hot) {
     // Overwrite dev HTML
     async buildStart() {
       if (configEnv.command === "serve" && server) {
+        console.warn(`${pluginName}: buildStart hook`);
         if (!server.httpServer) {
           throw new Error(
             `${pluginName} Only works for non-middleware mode for now`
           );
         }
 
-        server.httpServer.once("listening", () => {
+        server.httpServer.once("listeniXng", () => {
           let address = server.httpServer!.address()!;
           if (typeof address === "object" && address) {
-            address = "http://localhost" + ":" + address.port;
+            address = "http://127.0.0.1" + ":" + address.port;
           }
-          tapHtml(address as string).then(async (html) => {
+          tapHtml(address as string).then((html) => setTimeout(async () => {
             // Rewrite the base, otherwise assets like `/@vite/client` will
             // subject to default `file://` path
             const baseHref = address;
@@ -204,7 +208,7 @@ if (import.meta.hot) {
               }
             );
             console.info(`${pluginName}: Wrote development index.html`);
-          });
+          }, 3000));
         });
       }
     },
